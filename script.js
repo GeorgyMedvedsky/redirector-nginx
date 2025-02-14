@@ -47,7 +47,7 @@ function generateNginxRedirects(urls, targetUrl) {
           }
 
           const segments = trimmedPath.split(/[\/-]/).filter((segment) => segment);
-          const segmentCount = segments.length;
+          // const segmentCount = segments.length;
 
           let prefix;
           // if (segmentCount > 2) {
