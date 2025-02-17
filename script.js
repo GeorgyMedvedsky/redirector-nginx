@@ -28,6 +28,7 @@ function generateNginxRedirects(urls, targetUrl) {
   const targetUrlLine = `set $target_url_ ${targetUrl};\n\n`;
   const groupedRedirects = {};
   let queryRedirects = "";
+  const existingRedirects = new Set();
 
   urls.forEach((url) => {
       try {
@@ -40,19 +41,25 @@ function generateNginxRedirects(urls, targetUrl) {
 
           if ([...params.keys()].length > 0) {
               for (const [key, value] of params) {
-                  queryRedirects += `if ($args ~* "^${path}?${key}=(.*)") {\n    return 301 ${targetUrl};\n}\n`;
+                  const redirectCondition = `if ($args ~* "^${key}=(.*)") {\n    return 301 ${targetUrl};\n}\n`;
+
+                  if (!existingRedirects.has(redirectCondition)) {
+                      queryRedirects += redirectCondition;
+                      existingRedirects.add(redirectCondition);
+                  }
               }
-          } else if (segments.length > 0) {
+          }
+
+          if (segments.length > 0) {
               prefix = segments[0];
+              if (!groupedRedirects[prefix]) {
+                  groupedRedirects[prefix] = [];
+              }
+              groupedRedirects[prefix].push(path);
           } else {
               console.warn(`Пустой путь для URL: ${url}`);
               return;
           }
-
-          if (!groupedRedirects[prefix]) {
-              groupedRedirects[prefix] = [];
-          }
-          groupedRedirects[prefix].push(path);
 
       } catch (e) {
           console.error(`Некорректный URL: ${url}`);
@@ -64,7 +71,7 @@ function generateNginxRedirects(urls, targetUrl) {
   });
 
   const filteredRedirects = redirects.filter(
-      (item) => !item.includes("rewrite ^/(.*)?$") || !item.includes("rewrite ^/undefined(.*)?$")
+      (item) => !item.includes("rewrite ^/(.*)?$") && !item.includes("rewrite ^/undefined(.*)?$")
   );
 
   return targetUrlLine + queryRedirects + filteredRedirects.join("\n") + "\n";
