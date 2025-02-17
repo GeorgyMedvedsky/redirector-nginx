@@ -40,14 +40,19 @@ function generateNginxRedirects(urls, targetUrl) {
           let prefix;
 
           if ([...params.keys()].length > 0) {
+              let redirectConditionAdded = false;
+
               for (const [key, value] of params) {
-                  const redirectCondition = `if ($args ~* "^${key}=(.*)") {\n    return 301 ${targetUrl};\n}\n`;
+                  const redirectCondition = `if ($args ~* "^${path}${key}=(.*)") {\n    return 301 ${targetUrl};\n}\n`;
 
                   if (!existingRedirects.has(redirectCondition)) {
                       queryRedirects += redirectCondition;
                       existingRedirects.add(redirectCondition);
+                      redirectConditionAdded = true;
                   }
               }
+
+              if (redirectConditionAdded) return;
           }
 
           if (segments.length > 0) {
@@ -56,9 +61,6 @@ function generateNginxRedirects(urls, targetUrl) {
                   groupedRedirects[prefix] = [];
               }
               groupedRedirects[prefix].push(path);
-          } else {
-              console.warn(`Пустой путь для URL: ${url}`);
-              return;
           }
 
       } catch (e) {
