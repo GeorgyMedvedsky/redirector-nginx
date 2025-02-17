@@ -28,36 +28,31 @@ function generateNginxRedirects(urls, targetUrl) {
   const targetUrlLine = `set $target_url_ ${targetUrl};\n\n`;
   const groupedRedirects = {};
   let queryRedirects = "";
-  let firstParamProcessed = false;
 
   urls.forEach((url) => {
       try {
           const decodedUrl = decodeURIComponent(url);
           const parsedUrl = new URL(decodedUrl);
           const path = parsedUrl.pathname;
-          const trimmedPath = path.split(/%?/)[0];
           const params = parsedUrl.searchParams;
           const segments = path.split(/[\/\.]/).filter((segment) => segment);
           let prefix;
 
-          if(segments.length > 0) {
-            prefix = segments[0];
-          } else {
-            console.warn(`Пустой путь для URL: ${url}`);
-            return;
-          }
-
-          for (const [key, value] of params) {
-              if (!firstParamProcessed) {
-                  queryRedirects += `if ($args ~* "^${key}=(.*)") {\n    return 301 ${targetUrl};\n}\n`;
-                  firstParamProcessed = true;
+          if ([...params.keys()].length > 0) {
+              for (const [key, value] of params) {
+                  queryRedirects += `if ($args ~* "^${path}?${key}=(.*)") {\n    return 301 ${targetUrl};\n}\n`;
               }
+          } else if (segments.length > 0) {
+              prefix = segments[0];
+          } else {
+              console.warn(`Пустой путь для URL: ${url}`);
+              return;
           }
 
           if (!groupedRedirects[prefix]) {
               groupedRedirects[prefix] = [];
           }
-          groupedRedirects[prefix].push(trimmedPath);
+          groupedRedirects[prefix].push(path);
 
       } catch (e) {
           console.error(`Некорректный URL: ${url}`);
@@ -69,7 +64,7 @@ function generateNginxRedirects(urls, targetUrl) {
   });
 
   const filteredRedirects = redirects.filter(
-      (item) => !item.includes("rewrite ^/(.*)?$")
+      (item) => !item.includes("rewrite ^/(.*)?$") || !item.includes("rewrite ^/undefined(.*)?$")
   );
 
   return targetUrlLine + queryRedirects + filteredRedirects.join("\n") + "\n";
