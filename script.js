@@ -35,11 +35,17 @@ function generateNginxRedirects(urls, targetUrl) {
           const decodedUrl = decodeURIComponent(url);
           const parsedUrl = new URL(decodedUrl);
           const path = parsedUrl.pathname;
-          const trimmedPath = path.split('%')[0];
+          const trimmedPath = path.split(/%?/)[0];
           const params = parsedUrl.searchParams;
-          const segments = trimmedPath.split(/[\/\.]/).filter((segment) => segment);
+          const segments = path.split(/[\/\.]/).filter((segment) => segment);
           let prefix;
-          prefix = segments[0];
+
+          if(segments.length > 0) {
+            prefix = segments[0];
+          } else {
+            console.warn(`Пустой путь для URL: ${url}`);
+            return;
+          }
 
           for (const [key, value] of params) {
               if (!firstParamProcessed) {
