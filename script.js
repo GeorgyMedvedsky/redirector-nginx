@@ -35,10 +35,12 @@ function generateNginxRedirects(urls, targetUrl) {
           const decodedUrl = decodeURIComponent(url);
           const parsedUrl = new URL(decodedUrl);
           const path = parsedUrl.pathname;
-
-          const trimmedPath = path.split("%")[0];
-
+          const trimmedPath = path.split('%')[0];
           const params = parsedUrl.searchParams;
+          const segments = trimmedPath.split(/[\/\.]/).filter((segment) => segment);
+          let prefix;
+          prefix = segments[0];
+
           for (const [key, value] of params) {
               if (!firstParamProcessed) {
                   queryRedirects += `if ($args ~* "^${key}=(.*)") {\n    return 301 ${targetUrl};\n}\n`;
@@ -46,20 +48,6 @@ function generateNginxRedirects(urls, targetUrl) {
               }
           }
 
-          const segments = trimmedPath.split(/[\/-]/).filter((segment) => segment);
-          // const segmentCount = segments.length;
-
-          let prefix;
-          // if (segmentCount > 2) {
-          //     prefix = `${segments[0]}-${segments[1]}`;
-          // } else if (segmentCount === 2) {
-          //     prefix = segments.join("-");
-          // } else if (segmentCount === 1) {
-          //   prefix = segments[0];
-          // }
-          
-          prefix = segments[0];
-            
           if (!groupedRedirects[prefix]) {
               groupedRedirects[prefix] = [];
           }
