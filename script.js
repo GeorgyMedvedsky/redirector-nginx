@@ -8,76 +8,69 @@ const output = getElement("#output");
 const notification = getElement("#notification");
 const error = getElement("#error");
 
-generateButton.addEventListener("pointerup", () => {
-  const targetUrlValue = targetUrl.value.trim();
-  const urls = urlsInput.value
-    .split("\n")
-    .map((url) => url.trim())
-    .filter((url) => url);
-  error.textContent = "";
+function getElement(selector) {
+  return selector ? document.querySelector(selector) : null;
+}
 
-  if (!targetUrl) {
-    output.textContent = "Пожалуйста, введите целевой URL";
-    return;
-  }
-
-  output.textContent = generateNginxRedirects(urls, targetUrlValue);
-});
+function setShielding(ex) {
+  return ex.replace(/([.*+?^${}()|[\]\\])/g, '\\$1').replace([/ /g, '\\+']);
+}
 
 function generateNginxRedirects(urls, targetUrl) {
   const targetUrlLine = `set $target_url_ ${targetUrl};\n\n`;
   const groupedRedirects = {};
-  let queryRedirects = "";
   const existingRedirects = new Set();
+  let queryRedirects = '';
+  let redirects;
 
   urls.forEach((url) => {
-      try {
-          const decodedUrl = decodeURIComponent(url);
-          const parsedUrl = new URL(decodedUrl);
-          const path = parsedUrl.pathname;
-          const params = parsedUrl.searchParams;
-          const segments = path.split(/[\/\.]/).filter((segment) => segment);
-          let prefix;
-
-          if ([...params.keys()].length > 0) {
-              let redirectConditionAdded = false;
-
-              for (const [key, value] of params) {
-                  const redirectCondition = `if ($args ~* "^${path}${key}=(.*)") {\n    return 301 ${targetUrl};\n}\n`;
-
-                  if (!existingRedirects.has(redirectCondition)) {
-                      queryRedirects += redirectCondition;
-                      existingRedirects.add(redirectCondition);
-                      redirectConditionAdded = true;
-                  }
-              }
-
-              if (redirectConditionAdded) return;
+    const parsedUrl = new URL(url);
+    const tempPath = parsedUrl.pathname.replace(/%20/g, '__SPACE__');
+    const path = decodeURIComponent(tempPath);
+    const finalPath = path.replace(/__SPACE__/g, '%20');
+    const params = parsedUrl.searchParams;
+    if ([...params.keys()].length > 0) {
+      let redirectConditionAdded = false;
+      for (const [key, value] of params) {
+        const redirectCondition = `if ($args ~* "^${setShielding(finalPath)}\?${key}=${setShielding(value)}$") {\n    return 301 ${targetUrl};\n}\n`;
+          if (!existingRedirects.has(redirectCondition)) {
+              queryRedirects += redirectCondition;
+              existingRedirects.add(redirectCondition);
+              redirectConditionAdded = true;
           }
-
-          if (segments.length > 0) {
-              prefix = segments[0];
-              if (!groupedRedirects[prefix]) {
-                  groupedRedirects[prefix] = [];
-              }
-              groupedRedirects[prefix].push(path);
-          }
-
-      } catch (e) {
-          console.error(`Некорректный URL: ${url}`);
       }
+      if (redirectConditionAdded) return;
+    } else {
+      groupedRedirects[path] = [];
+      groupedRedirects[path].push(path);
+      redirects = Object.keys(groupedRedirects).map((path) => {
+        return `rewrite ^${setShielding(finalPath)}$ $target_url_ permanent;`;
+      });
+    }
   });
 
-  const redirects = Object.keys(groupedRedirects).map((prefix) => {
-      return `rewrite ^/${prefix}(.*)?$ $target_url_ permanent;`;
-  });
-
-  const filteredRedirects = redirects.filter(
-      (item) => !item.includes("rewrite ^/(.*)?$") && !item.includes("rewrite ^/undefined(.*)?$")
-  );
-
-  return targetUrlLine + queryRedirects + filteredRedirects.join("\n") + "\n";
+  if(redirects && queryRedirects) {
+    return targetUrlLine + queryRedirects + '\n\n' + redirects.join('\n') + '\n'
+  } else if(redirects && !queryRedirects) {
+    return targetUrlLine + redirects.join('\n') + '\n'
+  } else if(!redirects && queryRedirects) {
+    return targetUrlLine + queryRedirects;
+  } else return
 }
+
+generateButton.addEventListener("pointerup", () => {
+  const targetUrlValue = targetUrl.value.trim();
+  const urls = urlsInput.value
+    .split("\n")
+    .map((url) => url.trim());
+  error.textContent = "";
+
+  if (!targetUrlValue) {
+    error.textContent = "Пожалуйста, введите целевой URL";
+  } else {
+    output.textContent = generateNginxRedirects(urls, targetUrlValue);
+  }
+});
 
 copyButton.addEventListener("pointerup", () => {
   navigator.clipboard
@@ -110,7 +103,3 @@ resetButton.addEventListener("pointerup", () => {
   notification.textContent = "";
   error.textContent = "";
 });
-
-function getElement(selector) {
-  return selector ? document.querySelector(selector) : null;
-}

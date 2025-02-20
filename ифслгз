@@ -1,0 +1,11 @@
+set $target_url_ https://hindibusinessguru.com/;
+
+if ($args ~* "^/?s=(.*)") {
+    return 301 https://hindibusinessguru.com/;
+}
+rewrite ^/kya-hai-valentines-day-jane-love-tips(.*)?$ $target_url_ permanent;
+rewrite ^/online-paise-kamane-ke-tarike-hindi(.*)?$ $target_url_ permanent;
+rewrite ^/start-business-with-amazon-flipkart-earn-online(.*)?$ $target_url_ permanent;
+rewrite ^/content-writing-kya-hai-2022-me-kaise-kare(.*)?$ $target_url_ permanent;
+rewrite ^/best-diwali-ideas-2021-in-hindi(.*)?$ $target_url_ permanent;
+rewrite ^/eshram-card-kya-hai-aur-fayade(.*)?$ $target_url_ permanent;
